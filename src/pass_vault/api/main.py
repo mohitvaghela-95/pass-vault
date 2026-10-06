@@ -41,11 +41,11 @@ def get_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
     if user:
         return user
 
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User ot found")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
 
 @app.post(
-    "/api/user",
+    "/api/users",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -80,7 +80,11 @@ def get_user_credentials(user_id: int, db: Annotated[Session, Depends(get_db)]):
     user = result.scalars().first()
 
     if user:
-        return user
+        # Get credentials for user
+        result = db.execute(select(models.Credentials).where(models.Credentials.user_id == user_id))
+        credentials = result.scalars().all()
+
+        return credentials
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
