@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 # Define the DB url
-SQLALCHEMY_DB_URL = "sqlite://./vault.db"
+SQLALCHEMY_DB_URL = "sqlite:///./vault.db"
 
 # Create engine
 engine = create_engine(
