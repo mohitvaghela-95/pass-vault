@@ -19,7 +19,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
 
-    credentials: Mapped[list[Credentials]] = relationship(back_populates="credentials")
+    credentials: Mapped[list[Credentials]] = relationship("Credentials", back_populates="user")
 
 
 class Credentials(Base):
@@ -35,4 +35,4 @@ class Credentials(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
 
-    user: Mapped[User] = relationship(back_populates="users")
+    user: Mapped[User] = relationship("User", back_populates="credentials")
