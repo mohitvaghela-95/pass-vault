@@ -119,6 +119,23 @@ def update_user(user_id: int, user_data: UserUpdate, db: Annotated[Session, Depe
     return user
 
 
+@app.delete("/api/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: int,  # TODO - dont need this change all endpoints
+    db: Annotated[Session, Depends(get_db)],
+):
+
+    # Check for user credential specific to the user
+    user = db.get(models.User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Otherwise delete user
+    db.delete(user)
+
+    db.commit()
+
+
 @app.get("/api/users/{user_id}/credentials", response_model=list[CredentialResponse])
 def get_user_credentials(user_id: int, db: Annotated[Session, Depends(get_db)]):
 
