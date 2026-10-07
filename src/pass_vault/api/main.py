@@ -272,5 +272,36 @@ def patch_credential(
     return user_credential
 
 
+@app.delete(
+    "/api/users/{user_id}/credentials/{credential_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_credential(
+    user_id: int,  # TODO - dont need this change all endpoints
+    credential_id: int,
+    db: Annotated[Session, Depends(get_db)],
+):
+
+    # Check for user credential specific to the user
+    user_credential = (
+        db.execute(
+            select(models.Credentials).where(
+                models.Credentials.user_id == user_id,
+                models.Credentials.id == credential_id,
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if not user_credential:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Credential for user not found"
+        )
+
+    # Otherwise delete credential for user
+    db.delete(user_credential)
+
+    db.commit()
+
+
 if __name__ == "__main__":
     pass
