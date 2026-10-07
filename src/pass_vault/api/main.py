@@ -8,7 +8,13 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from pass_vault.api.schemas import CredentialCreate, CredentialResponse, UserCreate, UserResponse
+from pass_vault.api.schemas import (
+    CredentialCreate,
+    CredentialResponse,
+    CredentialUpdate,
+    UserCreate,
+    UserResponse,
+)
 from pass_vault.database import models
 from pass_vault.database.db import Base, engine, get_db
 
@@ -130,7 +136,7 @@ def create_user_credential(
     credential_exists = (
         db.execute(
             select(models.Credentials).where(
-                models.Credentials.user_id == user_id,
+                models.Credentials.user_id == credential.user_id,
                 models.Credentials.site == credential.site,
                 models.Credentials.site_username == credential.site_username,
             )
@@ -158,6 +164,38 @@ def create_user_credential(
     db.refresh(new_credential)
 
     return new_credential
+
+
+@app.put("/api/users/{user_id}/credentials/{credential_id}", response_model=CredentialResponse)
+def update_credential(
+    user_id: int,  # TODO - dont need this change all endpoints
+    credential_id: int,
+    credential_data: CredentialCreate,
+    db: Annotated[Session, Depends(get_db)],
+):
+
+    # Check for user
+    user = db.execute(select(models.User).where(models.User.id == user_id)).scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Check for user credential
+    user_credential = (
+        db.execute(
+            select(models.Credentials).where(
+                models.Credentials.user_id == user_id, models.Credentials.id == credential_id
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+    if not user_credential:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Credential not found")
+
+    # Otherwise update credential for user
+    return user_credential  # TODO
 
 
 if __name__ == "__main__":
