@@ -41,6 +41,7 @@ class CredentialUpdate(BaseModel):
     site_username: str | None = Field(default=None, max_length=120, min_length=1)
     site_password: str | None = Field(default=None, max_length=120, min_length=1)
     notes: str | None = Field(default=None)
+    user_id: int
 
 
 class CredentialResponse(CredentialBase):

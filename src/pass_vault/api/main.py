@@ -1,11 +1,13 @@
 """
 This file is the main api entrypoint
 """
+# TODO - Remove the references to user_id in urls
 
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from pass_vault.api.schemas import (
@@ -28,6 +30,14 @@ app = FastAPI(title="Pass Vault")
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/users", response_model=list[UserResponse])
+def get_users(db: Annotated[Session, Depends(get_db)]):
+
+    users = db.execute(select(models.User)).scalars().all()
+
+    return users
 
 
 @app.get("/api/users/{user_id}", response_model=UserResponse)
@@ -177,16 +187,16 @@ def update_credential(
     credential_data: CredentialCreate,
     db: Annotated[Session, Depends(get_db)],
 ):
+    # TODO - Probably dont need this check for user here
+    # # Check for user
+    # user = (
+    #     db.execute(select(models.User).where(models.User.id == credential_data.user_id))
+    #     .scalars()
+    #     .first()
+    # )
 
-    # Check for user
-    user = (
-        db.execute(select(models.User).where(models.User.id == credential_data.user_id))
-        .scalars()
-        .first()
-    )
-
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    # if not user:
+    #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     # Check for user credential specific to the user
     user_credential = (
@@ -211,6 +221,51 @@ def update_credential(
     user_credential.notes = credential_data.notes
 
     db.commit()
+    db.refresh(user_credential)
+
+    # Return new credential
+    return user_credential
+
+
+@app.patch("/api/users/{user_id}/credentials/{credential_id}", response_model=CredentialResponse)
+def patch_credential(
+    user_id: int,  # TODO - dont need this change all endpoints
+    credential_id: int,
+    credential_data: CredentialUpdate,
+    db: Annotated[Session, Depends(get_db)],
+):
+
+    # Check for user credential specific to the user
+    user_credential = (
+        db.execute(
+            select(models.Credentials).where(
+                models.Credentials.user_id == credential_data.user_id,
+                models.Credentials.id == credential_id,
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if not user_credential:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Credential for user not found"
+        )
+
+    # Otherwise update credential for user
+    update_data = credential_data.model_dump(
+        exclude_unset=True
+    )  # Get all the fields that have been specifically set
+
+    for item, value in update_data.items():
+        setattr(user_credential, item, value)  # Set value for each given attribute
+
+    try:
+        db.commit()
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Site and username combination exist"
+        )  # Check that site and username follows unique key constraint
+
     db.refresh(user_credential)
 
     # Return new credential
