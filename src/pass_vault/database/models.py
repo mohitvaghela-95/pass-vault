@@ -19,7 +19,9 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
 
-    credentials: Mapped[list[Credentials]] = relationship("Credentials", back_populates="user")
+    credentials: Mapped[list[Credentials]] = relationship(
+        "Credentials", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Credentials(Base):
