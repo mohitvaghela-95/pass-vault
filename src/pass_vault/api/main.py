@@ -18,15 +18,6 @@ Base.metadata.create_all(bind=engine)
 # Initiate fast api app
 app = FastAPI(title="Pass Vault")
 
-# def user_exists(user_id: int, db: Annotated[Session, Depends(get_db)]):
-#     result = db.execute(select(models.User).where(models.User.id == user_id))
-#     user = result.scalars().first()
-
-#     if user:
-#         return True
-
-#     return False
-
 
 @app.get("/health")
 def health():
@@ -35,13 +26,16 @@ def health():
 
 @app.get("/api/users/{user_id}", response_model=UserResponse)
 def get_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
+
+    # Check for user
     result = db.execute(select(models.User).where(models.User.id == user_id))
     user = result.scalars().first()
 
-    if user:
-        return user
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    # Otherwise return user
+    return user
 
 
 @app.post(
@@ -58,7 +52,7 @@ def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)]):
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username exists")
 
-    # Check is email exists
+    # Check if email exists
     result = db.execute(select(models.User).where(models.User.email == user.email))
     existing_email = result.scalars().first()
 
@@ -76,17 +70,46 @@ def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)]):
 
 @app.get("/api/users/{user_id}/credentials", response_model=list[CredentialResponse])
 def get_user_credentials(user_id: int, db: Annotated[Session, Depends(get_db)]):
+
+    # Check for user
     result = db.execute(select(models.User).where(models.User.id == user_id))
     user = result.scalars().first()
 
-    if user:
-        # Get credentials for user
-        result = db.execute(select(models.Credentials).where(models.Credentials.user_id == user_id))
-        credentials = result.scalars().all()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-        return credentials
+    # Otherwise get credentials for user
+    result = db.execute(select(models.Credentials).where(models.Credentials.user_id == user_id))
+    credentials = result.scalars().all()
 
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return credentials
+
+
+@app.get("/api/users/{user_id}/credentials/{credential_id}", response_model=CredentialResponse)
+def get_user_credential(user_id: int, credential_id: int, db: Annotated[Session, Depends(get_db)]):
+
+    # Check for user
+    user = db.execute(select(models.User).where(models.User.id == user_id)).scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Check for user credential
+    user_credential = (
+        db.execute(
+            select(models.Credentials).where(
+                models.Credentials.user_id == user_id, models.Credentials.id == credential_id
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+    if not user_credential:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Credential not found")
+
+    # Otherwise get credential for user
+    return user_credential
 
 
 @app.post(
@@ -97,12 +120,13 @@ def get_user_credentials(user_id: int, db: Annotated[Session, Depends(get_db)]):
 def create_user_credential(
     user_id: int, credential: CredentialCreate, db: Annotated[Session, Depends(get_db)]
 ):
+
+    # Check for user
     user = db.execute(select(models.User).where(models.User.id == user_id)).scalars().first()
-    # No user found
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Credential exists?
+    # Check for existing credential
     credential_exists = (
         db.execute(
             select(models.Credentials).where(
