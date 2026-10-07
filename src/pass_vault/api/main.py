@@ -128,7 +128,11 @@ def create_user_credential(
 ):
 
     # Check for user
-    user = db.execute(select(models.User).where(models.User.id == user_id)).scalars().first()
+    user = (
+        db.execute(select(models.User).where(models.User.id == credential.user_id))
+        .scalars()
+        .first()
+    )
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -175,27 +179,42 @@ def update_credential(
 ):
 
     # Check for user
-    user = db.execute(select(models.User).where(models.User.id == user_id)).scalars().first()
+    user = (
+        db.execute(select(models.User).where(models.User.id == credential_data.user_id))
+        .scalars()
+        .first()
+    )
 
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Check for user credential
+    # Check for user credential specific to the user
     user_credential = (
         db.execute(
             select(models.Credentials).where(
-                models.Credentials.user_id == user_id, models.Credentials.id == credential_id
+                models.Credentials.user_id == credential_data.user_id,
+                models.Credentials.id == credential_id,
             )
         )
         .scalars()
         .first()
     )
-
     if not user_credential:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Credential not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Credential for user not found"
+        )
 
     # Otherwise update credential for user
-    return user_credential  # TODO
+    user_credential.site = credential_data.site
+    user_credential.site_username = credential_data.site_username
+    user_credential.site_password = credential_data.site_password
+    user_credential.notes = credential_data.notes
+
+    db.commit()
+    db.refresh(user_credential)
+
+    # Return new credential
+    return user_credential
 
 
 if __name__ == "__main__":

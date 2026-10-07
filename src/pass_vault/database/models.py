@@ -24,7 +24,7 @@ class User(Base):
 
 class Credentials(Base):
     __tablename__ = "credentials"
-    __table_args__ = (UniqueConstraint("site", "site_username", name="uix_site_usr"),)
+    __table_args__ = (UniqueConstraint("user_id", "site", "site_username", name="uix_site_usr"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     site: Mapped[str] = mapped_column(String(1000), nullable=False)
