@@ -25,6 +25,13 @@ class UserResponse(UserBase):
     id: int
 
 
+class UserUpdate(BaseModel):
+    username: str | None = Field(default=None, min_length=1, max_length=50)
+    email: EmailStr | None = Field(
+        default=None, max_length=120
+    )  # Dont need min len because EmailStr validates not empty
+
+
 class CredentialBase(BaseModel):
     site: str = Field(max_length=150, min_length=1)
     site_username: str = Field(max_length=120, min_length=1)

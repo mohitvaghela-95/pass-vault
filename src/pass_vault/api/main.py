@@ -6,7 +6,7 @@ This file is the main api entrypoint
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,7 @@ from pass_vault.api.schemas import (
     CredentialUpdate,
     UserCreate,
     UserResponse,
+    UserUpdate,
 )
 from pass_vault.database import models
 from pass_vault.database.db import Base, engine, get_db
@@ -82,6 +83,40 @@ def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)]):
     db.refresh(new_user)  # Refresh model
 
     return new_user
+
+
+@app.patch("/api/users/{user_id}", response_model=UserResponse)
+def update_user(user_id: int, user_data: UserUpdate, db: Annotated[Session, Depends(get_db)]):
+
+    # Check for user
+    user = db.get(models.User, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Check if username or email taken
+    # Filter based on what is passed
+    conditions = []
+    if user_data.username is not None:
+        conditions.append(models.User.username == user_data.username)
+    if user_data.email is not None:
+        conditions.append(models.User.email == user_data.email)
+
+    if conditions:
+        found = db.execute(select(models.User).where(or_(*conditions))).scalars().first()
+        if found:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username and/or username exists",
+            )
+
+    updated_fields = user_data.model_dump(exclude_unset=True)
+    for col, value in updated_fields.items():
+        setattr(user, col, value)
+
+    db.commit()
+    db.refresh(user)
+
+    return user
 
 
 @app.get("/api/users/{user_id}/credentials", response_model=list[CredentialResponse])
