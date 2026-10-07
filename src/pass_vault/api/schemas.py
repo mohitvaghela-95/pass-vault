@@ -36,6 +36,13 @@ class CredentialCreate(CredentialBase):
     user_id: int  # TODO - TEMPORARY - get user from session auth
 
 
+class CredentialUpdate(BaseModel):
+    site: str | None = Field(default=None, max_length=150, min_length=1)
+    site_username: str | None = Field(default=None, max_length=120, min_length=1)
+    site_password: str | None = Field(default=None, max_length=120, min_length=1)
+    notes: str | None = Field(default=None)
+
+
 class CredentialResponse(CredentialBase):
     model_config = ConfigDict(from_attributes=True)
 
