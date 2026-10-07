@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pass_vault.database.db import Base
@@ -24,9 +24,10 @@ class User(Base):
 
 class Credentials(Base):
     __tablename__ = "credentials"
+    __table_args__ = (UniqueConstraint("site", "site_username", name="uix_site_usr"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    site: Mapped[str] = mapped_column(String(1000), nullable=True, default="")
+    site: Mapped[str] = mapped_column(String(1000), nullable=False)
     site_username: Mapped[str] = mapped_column(String(120), nullable=False)
     site_password: Mapped[str] = mapped_column(String(120), nullable=False)
     notes: Mapped[str] = mapped_column(Text, nullable=True, default="")

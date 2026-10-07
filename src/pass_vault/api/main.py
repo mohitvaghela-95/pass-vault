@@ -97,27 +97,43 @@ def get_user_credentials(user_id: int, db: Annotated[Session, Depends(get_db)]):
 def create_user_credential(
     user_id: int, credential: CredentialCreate, db: Annotated[Session, Depends(get_db)]
 ):
-    result = db.execute(select(models.User).where(models.User.id == user_id))
-    user = result.scalars().first()
+    user = db.execute(select(models.User).where(models.User.id == user_id)).scalars().first()
+    # No user found
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Create credential if existing user found
-    if user:
-        new_credential = models.Credentials(
-            user_id=user.id,
-            site=credential.site,
-            site_username=credential.site_username,
-            site_password=credential.site_password,
-            notes=credential.notes,
+    # Credential exists?
+    credential_exists = (
+        db.execute(
+            select(models.Credentials).where(
+                models.Credentials.user_id == user_id,
+                models.Credentials.site == credential.site,
+                models.Credentials.site_username == credential.site_username,
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if credential_exists:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Credential for this site and username already exists",
         )
 
-        db.add(new_credential)
-        db.commit()
-        db.refresh(new_credential)
+    # Otherwise add the credential
+    new_credential = models.Credentials(
+        user_id=user.id,
+        site=credential.site,
+        site_username=credential.site_username,
+        site_password=credential.site_password,
+        notes=credential.notes,
+    )
 
-        return new_credential
+    db.add(new_credential)
+    db.commit()
+    db.refresh(new_credential)
 
-    # Otherwise raise exception
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return new_credential
 
 
 if __name__ == "__main__":
